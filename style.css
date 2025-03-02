@@ -1,0 +1,15 @@
+/* style.css */
+.tooltip {
+    position: absolute;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 5px;
+    pointer-events: none;
+    font-family: Arial, sans-serif;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
