@@ -71,3 +71,26 @@ input[type="range"] {
     font-size: 20px;
     cursor: pointer;
 }
+
+#legend {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(20, 20, 20, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    color: white;
+}
+
+#legend div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#legend span {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}

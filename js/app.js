@@ -37,6 +37,7 @@ function init() {
     document.getElementById('chartBtn').addEventListener('click', showCharts);
 
     window.addEventListener('resize', onWindowResize);
+    window.addEventListener('mousemove', onMouseMove);
 }
 
 function setupLighting() {
@@ -61,20 +62,7 @@ async function loadData() {
         if (!response.ok) throw new Error('Failed to load');
         covidData = await response.json();
 
-        // Отладочный вывод
-        console.log('Loaded data:', covidData);
-
-        // Проверка структуры данных
-        if (!covidData || !Array.isArray(covidData) || covidData.length === 0) {
-            throw new Error('Invalid data: COVID data is empty or not an array');
-        }
-
-        // Проверка, что у первой страны есть данные
-        if (!covidData[0].data || !Array.isArray(covidData[0].data)) {
-            throw new Error('Invalid data: Missing "data" array in the first country');
-        }
-
-        maxDate = covidData[0].data.length - 1; // Используем ключ "data"
+        maxDate = covidData[0].data.length - 1;
         document.getElementById('dateSlider').max = maxDate;
         updateDate();
     } catch (error) {
@@ -95,15 +83,15 @@ function showPoints() {
     if (!covidData || covidData.length === 0) return;
 
     covidData.forEach(country => {
-        if (!country.data || !country.data[currentDateIndex]) return; // Используем ключ "data"
+        if (!country.data || !country.data[currentDateIndex]) return;
 
         const position = latLongToVector3(country.latitude, country.longitude, GLOBE_RADIUS * 1.02);
-        const color = getColorByCases(country.data[currentDateIndex].new_cases || 0); // Используем ключ "data"
+        const color = getColorByCases(country.data[currentDateIndex].new_cases || 0);
         const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 });
         const point = new THREE.Mesh(new THREE.SphereGeometry(POINT_RADIUS, 8, 8), material);
 
         point.position.copy(position);
-        point.userData = country.data[currentDateIndex]; // Используем ключ "data"
+        point.userData = country.data[currentDateIndex];
         globeGroup.add(point);
         points.push(point);
     });
@@ -112,19 +100,36 @@ function showPoints() {
 function showHeatmap() {
     if (!covidData || covidData.length === 0) return;
 
+    const positions = [];
+    const colors = [];
+    const sizes = [];
+
     covidData.forEach(country => {
-        if (!country.data || !country.data[currentDateIndex]) return; // Используем ключ "data"
+        if (!country.data || !country.data[currentDateIndex]) return;
 
         const position = latLongToVector3(country.latitude, country.longitude, GLOBE_RADIUS * 1.02);
-        const intensity = (country.data[currentDateIndex].new_cases || 0) / 1000; // Используем ключ "data"
-        const material = new THREE.SpriteMaterial({ color: getColorByCases(intensity), transparent: true, opacity: 0.5 });
+        const intensity = (country.data[currentDateIndex].new_cases || 0) / 1000;
 
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(0.1 + intensity, 0.1 + intensity, 1);
-        sprite.position.copy(position);
-        globeGroup.add(sprite);
-        heatmap.push(sprite);
+        positions.push(position.x, position.y, position.z);
+        colors.push(...getColorByCases(intensity).toArray());
+        sizes.push(intensity * 0.1);
     });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+    const material = new THREE.PointsMaterial({
+        vertexColors: true,
+        size: 0.1,
+        transparent: true,
+        opacity: 0.8
+    });
+
+    const heatmapPoints = new THREE.Points(geometry, material);
+    globeGroup.add(heatmapPoints);
+    heatmap.push(heatmapPoints);
 }
 
 function switchMode(newMode) {
@@ -140,10 +145,10 @@ function showCharts() {
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: covidData[0].data.map(d => d.date), // Используем ключ "data"
+            labels: covidData[0].data.map(d => d.date),
             datasets: [{
                 label: 'New Cases',
-                data: covidData[0].data.map(d => d.new_cases), // Используем ключ "data"
+                data: covidData[0].data.map(d => d.new_cases),
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
             }]
@@ -188,6 +193,34 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onMouseMove(event) {
+    const tooltip = document.getElementById('tooltip');
+    if (!tooltip) return;
+
+    const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(points);
+    if (intersects.length > 0) {
+        const country = intersects[0].object.userData;
+        tooltip.style.opacity = 1;
+        tooltip.innerHTML = `
+            <strong>${country.country}</strong><br>
+            New cases: ${country.new_cases.toLocaleString()}<br>
+            Total cases: ${country.cumulative_cases.toLocaleString()}
+        `;
+        tooltip.style.left = `${event.clientX + 15}px`;
+        tooltip.style.top = `${event.clientY + 15}px`;
+    } else {
+        tooltip.style.opacity = 0;
+    }
 }
 
 function animate() {
