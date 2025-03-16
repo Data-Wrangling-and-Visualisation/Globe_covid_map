@@ -1,7 +1,7 @@
 # COVID-19 Globe Visualization
 
 This project presents an interactive 3D globe visualization of COVID-19 data, including daily new cases and cumulative cases, using Three.js for the globe and Chart.js for supplementary charts.  It allows users to explore the pandemic's progression over time and across different countries.  The project emphasizes dynamic data loading, interactive controls, and multiple visualization modes (points and heatmap).
-
+![](images/points.png)
 ## Features
 
 *   **Interactive 3D Globe:**  A rotatable, zoomable globe displays COVID-19 data.  Users can interact with the globe using mouse controls (drag to rotate, scroll to zoom).
