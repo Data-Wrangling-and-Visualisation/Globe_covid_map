@@ -42,8 +42,8 @@ This project presents an interactive 3D globe visualization of COVID-19 data, in
 1.  **Clone the Repository:**
 
     ```bash
-    git clone <repository_url>
-    cd <repository_directory>
+    git clone https://github.com/Chehmet/dvw_covid_map.git
+    cd https://github.com/Chehmet/dvw_covid_map.git
     ```
 
 2.  **Data Preparation:**
