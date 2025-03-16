@@ -1,7 +1,9 @@
 # COVID-19 Globe Visualization
 
 This project presents an interactive 3D globe visualization of COVID-19 data, including daily new cases and cumulative cases, using Three.js for the globe and Chart.js for supplementary charts.  It allows users to explore the pandemic's progression over time and across different countries.  The project emphasizes dynamic data loading, interactive controls, and multiple visualization modes (points and heatmap).
+
 ![](images/points.png)
+
 ## Features
 
 *   **Interactive 3D Globe:**  A rotatable, zoomable globe displays COVID-19 data.  Users can interact with the globe using mouse controls (drag to rotate, scroll to zoom).
@@ -15,6 +17,7 @@ This project presents an interactive 3D globe visualization of COVID-19 data, in
     *   **New Cases Over Time:** A line chart showing the trend of new cases over the entire dataset's time range.
     *   **Cumulative Cases Over Time:**  A line chart showing the trend of cumulative cases over time.
     *   **Top 20 Countries (New Cases):** A bar chart displaying the top 20 countries with the highest number of new cases for the currently selected date.
+      ![](images/charts.png)
 *   **Dynamic Data Loading:**  COVID-19 data is loaded from a JSON file (`processed_data_date.json`), allowing for easy updates and extensibility.
 *   **Country Code Mapping:**  A robust mapping system handles inconsistencies between country codes in the COVID-19 data and the GeoJSON file used for country shapes.  It uses a combination of direct code matching, case-insensitive matching, and name-based matching with fallback mechanisms.
 *   **GeoJSON Caching:** Country shapes are loaded from a GeoJSON file and cached to improve performance, avoiding redundant network requests.
