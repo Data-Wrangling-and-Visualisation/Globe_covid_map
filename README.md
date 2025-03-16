@@ -117,5 +117,3 @@ The `generate_mapping.py` script generates a JavaScript object for mapping count
 *   **User Interface Enhancements:**  Improve the user interface with more interactive elements and better controls.
 *  **Mobile Support:** improve mobile device support.
 * **Downloading Data:** Ability to download a processed data.
-
-This README provides a comprehensive overview of the COVID-19 Globe Visualization project, explaining its features, structure, setup, and code. It also highlights key areas for future development.
