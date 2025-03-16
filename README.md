@@ -10,7 +10,7 @@ This project presents an interactive 3D globe visualization of COVID-19 data, in
 *   **Data Visualization Modes:**
     *   **Points:** Displays individual points on the globe representing the number of new cases in each country.  The color of each point represents the magnitude of cases, ranging from green (low) to red (high).
     *   **Heatmap:**  Overlays a heatmap on the globe, coloring countries based on the number of new cases.  The color intensity corresponds to case numbers, using a green-to-red gradient.
-*   **Time Slider and Date Input:** Users can select a specific date to view the data for that day.  A slider allows for quick navigation through the timeline, and a date input field provides precise date selection (DD.MM.YYYY format).
+*   **Time Slider and Date Input:** Users can select a specific date to view the data for that day.  A slider allows for quick navigation through the timeline, and a date input field provides precise date selection (DD.MM.YYYY format) and prevents wrong date usage.
 *   **Dynamic Legend:**  A color-coded legend displays the numerical ranges corresponding to the colors used in both the points and heatmap modes. The legend dynamically updates based on the maximum number of cases for the selected date.
 *   **Interactive Tooltips:**  Hovering over a country (in either points or heatmap mode) displays a tooltip showing the country's name, new cases, and total cases for the selected date.
 *   **Data Charts:**  Clicking the "Charts" button opens a modal window containing three charts:
