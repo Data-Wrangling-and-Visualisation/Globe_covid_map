@@ -186,7 +186,55 @@ const countryCodeMap = {
     init();
     loadData();
     animate();
-    
+
+    let cameraState = {
+      position: new THREE.Vector3(),
+      rotation: new THREE.Euler(),
+      target: new THREE.Vector3()
+    };
+    let is3D = true; // Track the current mode
+
+    function getVisibleRegion() {
+      const forward = new THREE.Vector3(0, 0, -1);
+      forward.applyQuaternion(camera.quaternion); // Transform forward vector by camera rotation
+      return forward;
+    }
+
+    function switchTo2D() {
+      // Save the current camera state
+      cameraState.position.copy(camera.position);
+      cameraState.rotation.copy(camera.rotation);
+      cameraState.target.copy(controls.target);
+  
+      // Calculate the visible region in 3D mode
+      const visibleRegion = getVisibleRegion();
+  
+      // Position the camera for 2D mode
+      const distance = 5; // Distance from the globe in 2D mode
+      camera.position.copy(visibleRegion).multiplyScalar(distance);
+      camera.up.set(0, 1, 0); // Ensure the camera is upright
+      camera.lookAt(0, 0, 0); // Look at the center of the globe
+  
+      // Disable tilt and rotation in OrbitControls
+      controls.enableRotate = false;
+      controls.minPolarAngle = Math.PI / 2;
+      controls.maxPolarAngle = Math.PI / 2;
+      controls.update();
+    }
+  
+    function switchTo3D() {
+      // Restore the camera to the saved state
+      camera.position.copy(cameraState.position);
+      camera.rotation.copy(cameraState.rotation);
+      controls.target.copy(cameraState.target);
+  
+      // Enable tilt and rotation in OrbitControls
+      controls.enableRotate = true;
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = Math.PI;
+      controls.update();
+    }
+
     function init() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
@@ -205,6 +253,23 @@ const countryCodeMap = {
     
         setupLighting();
         createGlobe();
+
+        const toggleButton = document.getElementById('toggle-mode');
+
+        toggleButton.addEventListener('click', () => {
+          if (is3D) {
+              switchTo2D();
+              toggleButton.textContent = 'Switch to 3D';
+          } else {
+              switchTo3D();
+              toggleButton.textContent = 'Switch to 2D';
+          }
+          is3D = !is3D; // Toggle the mode
+      
+          // Clear and redraw the heatmap
+          clearHeatmap();
+          showHeatmap();
+        });
     
         document.getElementById('dateSlider').addEventListener('input', onSliderChange);
         document.getElementById('dateInput').addEventListener('change', onDateInputChange); // Listen for changes
@@ -389,104 +454,119 @@ const countryCodeMap = {
       });
     }
     
-    async function loadCountryShape(geojsonId) {
+    async function loadCountryShape(geojsonId, is3D = true) {
       if (countryGeometryCache.has(geojsonId)) {
-        return countryGeometryCache.get(geojsonId);
+          return countryGeometryCache.get(geojsonId);
       }
-    
+  
       try {
-        const response = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson');
-        if (!response.ok) throw new Error(`Failed to load GeoJSON: ${response.status}`);
-        const geojsonData = await response.json();
-    
-        const countryData = geojsonData.features.find(f => f.properties.ISO_A3 === geojsonId);
-        if (!countryData) {
-          console.warn(`No GeoJSON data found for ${geojsonId}`);
-          return null;
-        }
-    
-        const shape = new THREE.Shape();
-        let firstPoint = true;
-    
-            const processCoordinates = (coords, depth = 0) => {
-          coords.forEach(point => {
-            if (Array.isArray(point[0])) {
-              processCoordinates(point, depth + 1);
-            } else {
-              const [lon, lat] = point;
-              const vec = latLongToVector3(lat, lon, GLOBE_RADIUS);
-    
-              if (firstPoint) {
-                shape.moveTo(vec.x, vec.y);
-                firstPoint = false;
-              } else {
-                shape.lineTo(vec.x, vec.y);
-              }
-            }
-          });
-            if(depth > 0) shape.closePath();
-        };
-    
-    
-        if (countryData.geometry.type === 'MultiPolygon') {
-          countryData.geometry.coordinates.forEach(polygon => {
-            processCoordinates(polygon);
-          });
-        } else {
-          processCoordinates(countryData.geometry.coordinates);
-        }
-    
-        const geometry = new THREE.ShapeGeometry(shape);
-        countryGeometryCache.set(geojsonId, geometry);
-        return geometry;
-    
+          const response = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson');
+          if (!response.ok) throw new Error(`Failed to load GeoJSON: ${response.status}`);
+          const geojsonData = await response.json();
+  
+          const countryData = geojsonData.features.find(f => f.properties.ISO_A3 === geojsonId);
+          if (!countryData) {
+              console.warn(`No GeoJSON data found for ${geojsonId}`);
+              return null;
+          }
+  
+          const shape = new THREE.Shape();
+          let firstPoint = true;
+  
+          const processCoordinates = (coords, depth = 0) => {
+              coords.forEach(point => {
+                  if (Array.isArray(point[0])) {
+                      processCoordinates(point, depth + 1);
+                  } else {
+                      const [lon, lat] = point;
+                      let x, y;
+  
+                      if (is3D) {
+                          // For 3D mode, project onto the globe
+                          const vec = latLongToVector3(lat, lon, GLOBE_RADIUS);
+                          x = vec.x;
+                          y = vec.y;
+                      } else {
+                          // For 2D mode, use a flat projection (Mercator or simple scaling)
+                          x = (lon / 180) * GLOBE_RADIUS * 2; // Scale longitude to fit within the plane
+                          y = (lat / 90) * GLOBE_RADIUS; // Scale latitude to fit within the plane
+                      }
+  
+                      if (firstPoint) {
+                          shape.moveTo(x, y);
+                          firstPoint = false;
+                      } else {
+                          shape.lineTo(x, y);
+                      }
+                  }
+              });
+              if (depth > 0) shape.closePath();
+          };
+  
+          if (countryData.geometry.type === 'MultiPolygon') {
+              countryData.geometry.coordinates.forEach(polygon => {
+                  processCoordinates(polygon);
+              });
+          } else {
+              processCoordinates(countryData.geometry.coordinates);
+          }
+  
+          const geometry = new THREE.ShapeGeometry(shape);
+          countryGeometryCache.set(geojsonId, geometry);
+          return geometry;
+  
       } catch (error) {
-        console.error('Error loading or processing GeoJSON:', error);
-        return null;
+          console.error('Error loading or processing GeoJSON:', error);
+          return null;
       }
     }
+
     function showHeatmap() {
       if (!covidData.length) return;
-    
+  
       clearHeatmap();
-    
+  
       const maxCases = Math.max(...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
-    
+  
       covidData.forEach(country => {
-        const geojsonId = countryCodeMap[country.country_code];
-        if (!geojsonId || !country.data[currentDateIndex]) return;
-    
-        const cases = country.data[currentDateIndex].new_cases;
-        const color = getHeatmapColorByCases(cases, maxCases);
-    
-        loadCountryShape(geojsonId).then(geometry => {
-          if (!geometry) return;
-    
-          const material = new THREE.MeshPhongMaterial({
-            color,
-            transparent: true,
-            opacity: 0.9,
-            side: THREE.DoubleSide
+          const geojsonId = countryCodeMap[country.country_code];
+          if (!geojsonId || !country.data[currentDateIndex]) return;
+  
+          const cases = country.data[currentDateIndex].new_cases;
+          const color = getHeatmapColorByCases(cases, maxCases);
+  
+          loadCountryShape(geojsonId, is3D).then(geometry => {
+              if (!geometry) return;
+  
+              const material = new THREE.MeshPhongMaterial({
+                  color,
+                  transparent: true,
+                  opacity: 0.9,
+                  side: THREE.DoubleSide
+              });
+  
+              const mesh = new THREE.Mesh(geometry, material);
+  
+              if (is3D) {
+                  // For 3D mode, position on the globe
+                  const position = latLongToVector3(country.latitude, country.longitude, GLOBE_RADIUS, 0.01);
+                  mesh.position.copy(position);
+                  mesh.lookAt(0, 0, 0);
+              } else {
+                  // For 2D mode, position on the XY plane
+                  const x = (country.longitude / 180) * GLOBE_RADIUS * 2; // Scale longitude
+                  const y = (country.latitude / 90) * GLOBE_RADIUS; // Scale latitude
+                  mesh.position.set(x, y, 0);
+              }
+  
+              mesh.scale.setScalar(is3D ? HEATMAP_SCALE : HEATMAP_SCALE * 0.5); // Adjust scale for 2D mode
+              mesh.userData = {
+                  country: country.country,
+                  ...country.data[currentDateIndex]
+              };
+              globeGroup.add(mesh);
+              heatmap.push(mesh);
           });
-    
-          const mesh = new THREE.Mesh(geometry, material);
-    
-          geometry.computeBoundingBox();
-          const centroid = new THREE.Vector3();
-          geometry.boundingBox.getCenter(centroid);
-    
-          const position = latLongToVector3(country.latitude, country.longitude, GLOBE_RADIUS, 0.01);
-          geometry.translate(-centroid.x, -centroid.y, -centroid.z);
-          mesh.position.copy(position);
-          mesh.lookAt(0, 0, 0);
-          mesh.scale.setScalar(HEATMAP_SCALE);
-          mesh.userData = {
-            country: country.country,
-            ...country.data[currentDateIndex]
-          }
-          globeGroup.add(mesh);
-          heatmap.push(mesh);
-        });
       });
     }
     
