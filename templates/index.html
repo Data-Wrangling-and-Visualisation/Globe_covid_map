@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COVID-19 Globe Visualization</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="controls">
+        <button id="heatmapBtn">Heatmap</button>
+        <button id="pointsBtn">Points</button>
+        <button id="chartBtn">Charts</button>
+        <button id="toggle-mode">Switch between 2D and 3D</button>
+    </div>
+
+    <div id="slider-container">
+        <label for="dateSlider">Date:</label>
+        <input type="range" id="dateSlider" min="0" max="1826" value="0" step="1">
+        <input type="text" id="dateInput" placeholder="DD.MM.YYYY">
+        <span id="dateLabel"></span>
+    </div>
+
+      <div id="legend">
+        <!-- Legend content will be added dynamically by JavaScript -->
+    </div>
+
+    <div id="tooltip"></div>
+
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <span class="close">×</span>
+            <canvas id="casesChart" width="600" height="200"></canvas> <!-- Increased width and height -->
+            <canvas id="cumulativeChart" width="600" height="200"></canvas>
+            <canvas id="countryChart" width="600" height="300"></canvas> <!-- New chart -->
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

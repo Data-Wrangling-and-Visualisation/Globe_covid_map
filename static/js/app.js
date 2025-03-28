@@ -299,7 +299,7 @@ const countryCodeMap = {
     
     async function loadData() {
       try {
-        const response = await fetch('data/processed_data_date.json');
+        const response = await fetch('/api/data');
         if (!response.ok) throw new Error('Failed to load data');
         covidData = await response.json();
     

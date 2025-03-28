@@ -1,5 +1,7 @@
 import pandas as pd
-from datetime import timedelta
+from datetime import datetime
+import os
+import shutil
 
 def prepare_data():
     # Загрузка данных о координатах стран
@@ -43,9 +45,19 @@ def prepare_data():
             'cumulative_cases': int(row['Cumulative_cases'])
         })
     
-    # Сохранение в JSON
     final_data = list(country_dict.values())
     pd.DataFrame(final_data).to_json('data/processed_data_date.json', orient='records', indent=2)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M")
+    final_filename = f'processed_data_{timestamp}.json'
+    pd.DataFrame(final_data).to_json(f'data/{final_filename}', orient='records', indent=2)
+
+    cleanup_old_files('data', 'processed_data_*.json', keep=5)
+    cleanup_old_files('raw_data', 'WHO-COVID-19-global-daily-data.csv', keep=5)
+
+def cleanup_old_files(directory, pattern, keep=5):
+    files = sorted([f for f in os.listdir(directory) if f.match(pattern)], reverse=True)
+    for f in files[keep:]:
+        os.remove(os.path.join(directory, f))
 
 if __name__ == '__main__':
     prepare_data()
