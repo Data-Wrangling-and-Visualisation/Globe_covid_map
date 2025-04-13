@@ -164,6 +164,7 @@ const countryCodeMap = {
     
     let scene, camera, renderer, globe, controls, globeGroup;
     let points = [], heatmap = [], mode = "points";
+    let flatMap, geoJsonLayer, geoJsonData;
     let covidData = [], maxDate = 0, currentDateIndex = 0; // Initialize to 0
     const GLOBE_RADIUS = 1;
     const POINT_RADIUS = 0.015;
@@ -183,9 +184,17 @@ const countryCodeMap = {
     let casesChart, cumulativeChart, countryChart;
     
     
-    init();
-    loadData();
-    animate();
+    init().then(() => {
+      animate();
+    }).catch(error => {
+      console.error('Initialization failed:', error);
+      // Show error message to user
+      document.getElementById('dateLabel').textContent = 'Initialization failed - check console';
+    });
+
+
+   // loadData();
+   // animate();
 
     let cameraState = {
       position: new THREE.Vector3(),
@@ -235,24 +244,35 @@ const countryCodeMap = {
       controls.update();
     }
 
-    function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 2.5;
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    async function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 2.5;
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
     
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.minDistance = 1.2;
-        controls.maxDistance = 4;
-        globeGroup = new THREE.Group();
-        scene.add(globeGroup);
+      // Load data first before proceeding
+      await loadData();
+      await loadGeoJsonData();
     
-        setupLighting();
-        createGlobe();
+      // Setup controls after data is loaded
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.minDistance = 1.2;
+      controls.maxDistance = 4;
+      
+      globeGroup = new THREE.Group();
+      scene.add(globeGroup);
+      setupLighting();
+      createGlobe();
+    
+      // Add a small delay to ensure the globe is created before adding points
+      setTimeout(() => {
+        updateVisualization();
+      }, 100);
+  
 
         const toggleButton = document.getElementById('toggle-mode');
 
@@ -273,10 +293,12 @@ const countryCodeMap = {
     
         document.getElementById('dateSlider').addEventListener('input', onSliderChange);
         document.getElementById('dateInput').addEventListener('change', onDateInputChange); // Listen for changes
-        document.getElementById('heatmapBtn').addEventListener('click', () => switchMode("heatmap"));
+        document.getElementById('heatmapBtn').addEventListener('click', showFlatMapModal);
+        document.querySelector('.flatmap-close').addEventListener('click', hideFlatMapModal);
         document.getElementById('pointsBtn').addEventListener('click', () => switchMode("points"));
         document.getElementById('chartBtn').addEventListener('click', showCharts);
-    
+        document.getElementById('modalDateSlider').addEventListener('input', onSliderChange);
+        document.getElementById('modalDateInput').addEventListener('change', onDateInputChange);
         window.addEventListener('resize', onWindowResize);
         window.addEventListener('mousemove', onMouseMove);
     }
@@ -297,52 +319,184 @@ const countryCodeMap = {
         );
     }
     
-    async function loadData() {
+    async function loadGeoJsonData() {
       try {
-        const response = await fetch('/api/data');
-        if (!response.ok) throw new Error('Failed to load data');
-        covidData = await response.json();
-    
-        // --- DATE SLIDER SETUP (after data is loaded) ---
-        if (covidData.length > 0 && covidData[0].data) {
-          maxDate = covidData[0].data.length - 1;
-          document.getElementById('dateSlider').max = maxDate;
-          currentDateIndex = 0;
-          document.getElementById('dateSlider').value = currentDateIndex;
-          updateDateLabel();
-          updateDate();
-          createLegend(); // Create the legend *after* data is loaded and maxCases is calculated
-        }
-    
+          const response = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson');
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          geoJsonData = await response.json();
+          console.log('GeoJSON data loaded successfully');
       } catch (error) {
-        console.error('Error loading data:', error);
+          console.error('Failed to load GeoJSON:', error);
+          // Handle error (show message to user, retry logic, etc.)
+          throw error; // Re-throw to prevent further execution
       }
+  }
+  
+
+  function showFlatMapModal() {
+    if (!geoJsonData) {
+        console.error('GeoJSON data not loaded');
+        alert('Map data not available. Please try again later.');
+        return;
     }
+
+    const modal = document.getElementById('flatmapModal');
+    modal.style.display = 'block';
+    
+    if (!flatMap) {
+        flatMap = L.map('flatmap', {
+            center: [20, 0],
+            zoom: 2,
+            minZoom: 2,
+            maxBounds: [[-90, -180], [90, 180]]
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(flatMap);
+    }
+
+    setTimeout(() => {
+        flatMap.invalidateSize();
+        updateFlatMapData();
+    }, 100);
+}
+
+      
+      function hideFlatMapModal() {
+        document.getElementById('flatmapModal').style.display = 'none';
+        if (flatMap) flatMap.remove();
+        flatMap = null;
+      }
+      
+      function updateFlatMapData() {
+        if (!flatMap || !geoJsonData) return;
+      
+        // Remove existing layer if it exists
+        if (geoJsonLayer) {
+          flatMap.removeLayer(geoJsonLayer);
+        }
+      
+        // Create new layer with updated styles
+        geoJsonLayer = L.geoJSON(geoJsonData, {
+          style: styleFeature,
+          onEachFeature: onEachFeature
+        }).addTo(flatMap);
+      
+        // Update legend
+        createLegend();
+      }
+      
+    
+      
+    function styleFeature(feature) {
+      const iso3 = feature.properties.ISO_A3;
+      // Find the 2-letter code using the reverse mapping
+      const countryCode = Object.keys(countryCodeMap).find(key => countryCodeMap[key] === iso3);
+      const country = covidData.find(c => c.country_code === countryCode);
+      
+      const cases = country?.data[currentDateIndex]?.new_cases || 0;
+      const maxCases = Math.max(1, ...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
+      
+      return {
+          fillColor: getHeatmapColor(cases, maxCases),
+          weight: 1,
+          opacity: 1,
+          color: 'white',
+          fillOpacity: 0.7
+      };
+  }
+  
+    
+    
+    function getHeatmapColor(cases, maxCases) {
+        const ratio = cases / maxCases;
+        return ratio > 0.8 ? '#800026' :
+               ratio > 0.6 ? '#BD0026' :
+               ratio > 0.4 ? '#E31A1C' :
+               ratio > 0.2 ? '#FC4E2A' :
+               cases === 0 ? '#808080' : // Gray for zero cases
+               '#FD8D3C'; // Orange for lowest non-zero
+    }
+    
+      
+      function onEachFeature(feature, layer) {
+        const iso3 = feature.properties.ISO_A3;
+        const country = covidData.find(c => countryCodeMap[c.country_code] === iso3);
+        const cases = country?.data[currentDateIndex]?.new_cases || 0;
+        
+        layer.bindPopup(`
+          <strong>${feature.properties.ADMIN}</strong><br>
+          New cases: ${cases.toLocaleString()}
+        `);
+      }      
+
+      async function loadData() {
+        try {
+            const response = await fetch('/api/data');
+            if (!response.ok) throw new Error('Failed to load data');
+            covidData = await response.json();
+    
+            if (covidData.length > 0 && covidData[0].data) {
+                maxDate = covidData[0].data.length - 1;
+                // Initialize both sliders
+                document.getElementById('dateSlider').max = maxDate;
+                document.getElementById('modalDateSlider').max = maxDate;
+                currentDateIndex = 0;
+                document.getElementById('dateSlider').value = currentDateIndex;
+                document.getElementById('modalDateSlider').value = currentDateIndex;
+                updateDateLabel();
+                updateDate();
+                createLegend();
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+    
     
     
     // --- IMPROVED updateDateLabel ---
-    function updateDateLabel() {
-        if (covidData.length > 0 && covidData[0].data && covidData[0].data[currentDateIndex]) {
-            const dateStr = covidData[0].data[currentDateIndex].date; // Get date string
-            const date = new Date(dateStr);
-            const year = date.getFullYear();
-            const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Month (0-11)
-            const day = date.getDate().toString().padStart(2, '0');
-            const formattedDate = `${day}.${month}.${year}`;  // DD.MM.YYYY
-            document.getElementById('dateLabel').textContent = formattedDate;
-            document.getElementById('dateInput').value = formattedDate; // Update input field
-        } else {
-            document.getElementById('dateLabel').textContent = "No Data"; // Handle missing data case
-        }
+// Update the updateDateLabel function
+function updateDateLabel() {
+    if (covidData.length > 0 && covidData[0].data && covidData[0].data[currentDateIndex]) {
+        const dateStr = covidData[0].data[currentDateIndex].date;
+        const date = new Date(dateStr);
+        const formattedDate = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+        
+        // Update all date displays
+        document.getElementById('dateLabel').textContent = formattedDate;
+        document.getElementById('dateInput').value = formattedDate;
+        document.getElementById('flatmapDateLabel').textContent = formattedDate;
+        document.getElementById('modalDateInput').value = formattedDate;
+        document.getElementById('modalDateSlider').value = currentDateIndex;
     }
+}
     
     
     // --- Event handler for slider changes ---
-    function onSliderChange() {
-      currentDateIndex = parseInt(document.getElementById('dateSlider').value);
+    function onSliderChange(e) {
+      // Update from both possible sliders
+      const sliderValue = e.target.id === 'modalDateSlider' 
+          ? e.target.value 
+          : document.getElementById('dateSlider').value;
+      
+      currentDateIndex = parseInt(sliderValue);
+      
+      // Sync both sliders
+      document.getElementById('dateSlider').value = currentDateIndex;
+      document.getElementById('modalDateSlider').value = currentDateIndex;
+      
       updateDateLabel();
       updateVisualization();
+      
+      // Force heatmap update if flatmap modal is open
+      if (document.getElementById('flatmapModal').style.display === 'block') {
+        updateFlatMapData();
+      }
     }
+    
+  
     
     // --- Event handler for date input changes ---
     function onDateInputChange() {
@@ -390,36 +544,33 @@ const countryCodeMap = {
     
     // --- Creates Legend (with Numerical Ranges) ---
     function createLegend() {
-        if (covidData.length === 0) return;
-    
-        const maxCases = Math.max(...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
-    
-        // Define thresholds for the color categories
-        const lowThreshold = 0;
-        const mediumThreshold = Math.round(maxCases * 0.25); // Example threshold: 25%
-        const highThreshold = Math.round(maxCases * 0.75);  // Example threshold: 75%
-        const veryHighThreshold = Math.round(maxCases * 0.9);
-    
-        const legend = document.getElementById('legend');
-        legend.innerHTML = `
-          <div id="heatmap-legend">
-              <strong>Heatmap Colors:</strong>
-              <div><span style="background: ${LOW_COLOR};"></span> 0 - ${mediumThreshold.toLocaleString()}</div>
-              <div><span style="background: ${MEDIUM_COLOR};"></span> ${mediumThreshold.toLocaleString() + 1} - ${highThreshold.toLocaleString()}</div>
-              <div><span style="background: ${HIGH_COLOR};"></span> ${highThreshold.toLocaleString() + 1} - ${veryHighThreshold.toLocaleString()}</div>
-              <div><span style="background: ${VERY_HIGH_COLOR};"></span> ${veryHighThreshold.toLocaleString() + 1} - ${maxCases.toLocaleString()}</div>
-              <div><span style="background: ${EXTREME_COLOR};"></span> ${maxCases.toLocaleString()}+</div>
+      if (covidData.length === 0) return;
+  
+      const maxCases = Math.max(...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
+      
+      // Create legend items for heatmap colors
+      const legendItems = [
+          { color: '#FD8D3C', label: '1 - ' + Math.floor(maxCases * 0.2).toLocaleString() },
+          { color: '#FC4E2A', label: Math.floor(maxCases * 0.2 + 1) + ' - ' + Math.floor(maxCases * 0.4) },
+          { color: '#E31A1C', label: Math.floor(maxCases * 0.4 + 1) + ' - ' + Math.floor(maxCases * 0.6) },
+          { color: '#BD0026', label: Math.floor(maxCases * 0.6 + 1) + ' - ' + Math.floor(maxCases * 0.8) },
+          { color: '#800026', label: Math.floor(maxCases * 0.8 + 1) + '+' },
+          { color: '#808080', label: 'No data' }
+      ];
+  
+      const legendHTML = `
+      <div class="legend-title">Cases per Country</div>
+      ${legendItems.map(item => `
+          <div class="legend-item">
+              <span class="legend-color" style="background:${item.color}"></span>
+              <span class="legend-label">${item.label}</span>
           </div>
-          <div id="points-legend">
-              <strong>Point Colors:</strong>
-              <div><span style="background: ${LOW_COLOR};"></span> 0 - ${mediumThreshold.toLocaleString()}</div>
-              <div><span style="background: ${MEDIUM_COLOR};"></span> ${mediumThreshold.toLocaleString() + 1} - ${highThreshold.toLocaleString()}</div>
-              <div><span style="background: ${HIGH_COLOR};"></span> ${highThreshold.toLocaleString() + 1} - ${veryHighThreshold.toLocaleString()}</div>
-              <div><span style="background: ${VERY_HIGH_COLOR};"></span> ${veryHighThreshold.toLocaleString() + 1} - ${maxCases.toLocaleString()}</div>
-               <div><span style="background: ${EXTREME_COLOR};"></span> ${maxCases.toLocaleString()}+</div>
-    
-          </div>`;
-    }
+      `).join('')}`;
+  
+      document.getElementById('flatmap-legend').innerHTML = legendHTML;
+  }
+  
+  
     
     function showPoints() {
       if (!covidData || covidData.length === 0) return;
@@ -520,55 +671,6 @@ const countryCodeMap = {
           return null;
       }
     }
-
-    function showHeatmap() {
-      if (!covidData.length) return;
-  
-      clearHeatmap();
-  
-      const maxCases = Math.max(...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
-  
-      covidData.forEach(country => {
-          const geojsonId = countryCodeMap[country.country_code];
-          if (!geojsonId || !country.data[currentDateIndex]) return;
-  
-          const cases = country.data[currentDateIndex].new_cases;
-          const color = getHeatmapColorByCases(cases, maxCases);
-  
-          loadCountryShape(geojsonId, is3D).then(geometry => {
-              if (!geometry) return;
-  
-              const material = new THREE.MeshPhongMaterial({
-                  color,
-                  transparent: true,
-                  opacity: 0.9,
-                  side: THREE.DoubleSide
-              });
-  
-              const mesh = new THREE.Mesh(geometry, material);
-  
-              if (is3D) {
-                  // For 3D mode, position on the globe
-                  const position = latLongToVector3(country.latitude, country.longitude, GLOBE_RADIUS, 0.01);
-                  mesh.position.copy(position);
-                  mesh.lookAt(0, 0, 0);
-              } else {
-                  // For 2D mode, position on the XY plane
-                  const x = (country.longitude / 180) * GLOBE_RADIUS * 2; // Scale longitude
-                  const y = (country.latitude / 90) * GLOBE_RADIUS; // Scale latitude
-                  mesh.position.set(x, y, 0);
-              }
-  
-              mesh.scale.setScalar(is3D ? HEATMAP_SCALE : HEATMAP_SCALE * 0.5); // Adjust scale for 2D mode
-              mesh.userData = {
-                  country: country.country,
-                  ...country.data[currentDateIndex]
-              };
-              globeGroup.add(mesh);
-              heatmap.push(mesh);
-          });
-      });
-    }
     
     function clearPoints() {
         points.forEach(p => globeGroup.remove(p));
@@ -576,13 +678,11 @@ const countryCodeMap = {
     }
     
     function clearHeatmap() {
-        heatmap.forEach(mesh => {
-            globeGroup.remove(mesh);
-            if (mesh.geometry) mesh.geometry.dispose();
-            if (mesh.material) mesh.material.dispose();
-        });
-        heatmap = [];
-    }
+        if (geoJsonLayer) {
+          geoJsonLayer.remove();
+          geoJsonLayer = null;
+        }
+      }
     
     // --- Heatmap Color Scale (Green to Red) ---
     function getHeatmapColorByCases(cases, maxCases) {
@@ -610,15 +710,18 @@ const countryCodeMap = {
     
     // --- Combined update function ---
     function updateVisualization() {
-        clearPoints();
-        clearHeatmap();
-        if (mode === "points") {
-            showPoints();
-        } else if (mode === "heatmap") {
-            showHeatmap();
-        }
-        createLegend(); // Update legend
-    }
+      clearPoints();
+      clearHeatmap();
+      if (mode === "points") {
+          showPoints();
+      } else if (mode === "heatmap") {
+          if (document.getElementById('flatmapModal').style.display === 'block') {
+              updateFlatMapData(); // Refresh heatmap when date changes
+          }
+      }
+      createLegend();
+  }
+  
     
     function showCharts() {
       const modal = document.getElementById('chartModal');
