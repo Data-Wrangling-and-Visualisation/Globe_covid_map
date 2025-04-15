@@ -201,47 +201,11 @@ const countryCodeMap = {
       rotation: new THREE.Euler(),
       target: new THREE.Vector3()
     };
-    let is3D = true; // Track the current mode
 
     function getVisibleRegion() {
       const forward = new THREE.Vector3(0, 0, -1);
       forward.applyQuaternion(camera.quaternion); // Transform forward vector by camera rotation
       return forward;
-    }
-
-    function switchTo2D() {
-      // Save the current camera state
-      cameraState.position.copy(camera.position);
-      cameraState.rotation.copy(camera.rotation);
-      cameraState.target.copy(controls.target);
-  
-      // Calculate the visible region in 3D mode
-      const visibleRegion = getVisibleRegion();
-  
-      // Position the camera for 2D mode
-      const distance = 5; // Distance from the globe in 2D mode
-      camera.position.copy(visibleRegion).multiplyScalar(distance);
-      camera.up.set(0, 1, 0); // Ensure the camera is upright
-      camera.lookAt(0, 0, 0); // Look at the center of the globe
-  
-      // Disable tilt and rotation in OrbitControls
-      controls.enableRotate = false;
-      controls.minPolarAngle = Math.PI / 2;
-      controls.maxPolarAngle = Math.PI / 2;
-      controls.update();
-    }
-  
-    function switchTo3D() {
-      // Restore the camera to the saved state
-      camera.position.copy(cameraState.position);
-      camera.rotation.copy(cameraState.rotation);
-      controls.target.copy(cameraState.target);
-  
-      // Enable tilt and rotation in OrbitControls
-      controls.enableRotate = true;
-      controls.minPolarAngle = 0;
-      controls.maxPolarAngle = Math.PI;
-      controls.update();
     }
 
     async function init() {
@@ -272,30 +236,11 @@ const countryCodeMap = {
       setTimeout(() => {
         updateVisualization();
       }, 100);
-  
-
-        const toggleButton = document.getElementById('toggle-mode');
-
-        toggleButton.addEventListener('click', () => {
-          if (is3D) {
-              switchTo2D();
-              toggleButton.textContent = 'Switch to 3D';
-          } else {
-              switchTo3D();
-              toggleButton.textContent = 'Switch to 2D';
-          }
-          is3D = !is3D; // Toggle the mode
-      
-          // Clear and redraw the heatmap
-          clearHeatmap();
-          showHeatmap();
-        });
     
         document.getElementById('dateSlider').addEventListener('input', onSliderChange);
         document.getElementById('dateInput').addEventListener('change', onDateInputChange); // Listen for changes
         document.getElementById('heatmapBtn').addEventListener('click', showFlatMapModal);
         document.querySelector('.flatmap-close').addEventListener('click', hideFlatMapModal);
-        document.getElementById('pointsBtn').addEventListener('click', () => switchMode("points"));
         document.getElementById('chartBtn').addEventListener('click', showCharts);
         document.getElementById('modalDateSlider').addEventListener('input', onSliderChange);
         document.getElementById('modalDateInput').addEventListener('change', onDateInputChange);
