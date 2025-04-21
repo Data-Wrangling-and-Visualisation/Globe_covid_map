@@ -356,12 +356,13 @@ const countryCodeMap = {
     
     function getHeatmapColor(cases, maxCases) {
         const ratio = cases / maxCases;
-        return ratio > 0.8 ? '#800026' :
-               ratio > 0.6 ? '#BD0026' :
-               ratio > 0.4 ? '#E31A1C' :
-               ratio > 0.2 ? '#FC4E2A' :
+        return ratio > 0.8 ? EXTREME_COLOR :
+               ratio > 0.6 ? VERY_HIGH_COLOR :
+               ratio > 0.4 ? HIGH_COLOR :
+               ratio > 0.2 ? MEDIUM_COLOR :
                cases === 0 ? '#808080' : // Gray for zero cases
-               '#FD8D3C'; // Orange for lowest non-zero
+               LOW_COLOR; // Orange for lowest non-zero
+
     }
     
       
@@ -493,20 +494,17 @@ function updateDateLabel() {
       updateVisualization();
     }
     
-    // --- Creates Legend (with Numerical Ranges) ---
     function createLegend() {
       if (covidData.length === 0) return;
   
       const maxCases = Math.max(...covidData.map(c => c.data[currentDateIndex]?.new_cases || 0));
       
-      // Create legend items for heatmap colors
       const legendItems = [
-          { color: '#FD8D3C', label: '1 - ' + Math.floor(maxCases * 0.2).toLocaleString() },
-          { color: '#FC4E2A', label: Math.floor(maxCases * 0.2 + 1) + ' - ' + Math.floor(maxCases * 0.4) },
-          { color: '#E31A1C', label: Math.floor(maxCases * 0.4 + 1) + ' - ' + Math.floor(maxCases * 0.6) },
-          { color: '#BD0026', label: Math.floor(maxCases * 0.6 + 1) + ' - ' + Math.floor(maxCases * 0.8) },
-          { color: '#800026', label: Math.floor(maxCases * 0.8 + 1) + '+' },
-          { color: '#808080', label: 'No data' }
+          { color: LOW_COLOR, label: '1 - 100' },
+          { color: MEDIUM_COLOR, label: '101 - 1,000' },
+          { color: HIGH_COLOR, label: '1,001 - 10,000' },
+          { color: VERY_HIGH_COLOR, label: '10,001 - 50,000' },
+          { color: EXTREME_COLOR, label: '50,001+' }
       ];
   
       const legendHTML = `
