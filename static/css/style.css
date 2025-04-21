@@ -261,3 +261,43 @@ button:hover {
     font-weight: bold;
     margin-bottom: 10px;
 }
+
+#globe-legend {
+    position: absolute;
+    bottom: 150px;
+    right: 20px;
+    background: rgba(20, 20, 20, 0.8);
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 250px;
+    backdrop-filter: blur(5px);
+    z-index: 100;
+}
+
+#globe-legend .legend-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#globe-legend .legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#globe-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#globe-legend .legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+}

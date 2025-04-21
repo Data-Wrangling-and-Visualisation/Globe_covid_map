@@ -1,4 +1,3 @@
-// --- Paste the generated countryCodeMap here ---
 const countryCodeMap = {
     "GN": "GIN",
     "CY": "CYP",
@@ -260,6 +259,7 @@ const countryCodeMap = {
                 const material = new THREE.MeshPhongMaterial({ map: texture });
                 globe = new THREE.Mesh(geometry, material);
                 globeGroup.add(globe);
+                createGlobeLegend();
             }
         );
     }
@@ -515,7 +515,32 @@ function updateDateLabel() {
       document.getElementById('flatmap-legend').innerHTML = legendHTML;
   }
   
-  
+    function createGlobeLegend() {
+      const legend = document.createElement('div');
+      legend.id = 'globe-legend';
+      
+      const ranges = [
+          { color: LOW_COLOR, label: '1 - 100' },
+          { color: MEDIUM_COLOR, label: '101 - 1,000' },
+          { color: HIGH_COLOR, label: '1,001 - 10,000' },
+          { color: VERY_HIGH_COLOR, label: '10,001 - 50,000' },
+          { color: EXTREME_COLOR, label: '50,001+' }
+      ];
+      
+      legend.innerHTML = `
+          <div class="legend-title">COVID-19 Cases</div>
+          <div class="legend-items">
+              ${ranges.map(range => `
+                  <div class="legend-item">
+                      <span class="legend-color" style="background: ${range.color}"></span>
+                      <span class="legend-label">${range.label}</span>
+                  </div>
+              `).join('')}
+          </div>
+      `;
+      document.body.appendChild(legend);
+  }
+
     
     function showPoints() {
       if (!covidData || covidData.length === 0) return;
