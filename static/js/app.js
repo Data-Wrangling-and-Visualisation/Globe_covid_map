@@ -354,15 +354,13 @@ const countryCodeMap = {
   
     
     
-    function getHeatmapColor(cases, maxCases) {
-        const ratio = cases / maxCases;
-        return ratio > 0.8 ? EXTREME_COLOR :
-               ratio > 0.6 ? VERY_HIGH_COLOR :
-               ratio > 0.4 ? HIGH_COLOR :
-               ratio > 0.2 ? MEDIUM_COLOR :
-               cases === 0 ? '#808080' : // Gray for zero cases
-               LOW_COLOR; // Orange for lowest non-zero
-
+      function getHeatmapColor(cases) {
+        return cases > 50000 ? EXTREME_COLOR :
+              cases > 10000 ? VERY_HIGH_COLOR :
+              cases > 1000 ? HIGH_COLOR :
+              cases > 100 ? MEDIUM_COLOR :
+              cases > 0 ? LOW_COLOR :
+              '#808080'; // Gray for zero cases
     }
     
       
