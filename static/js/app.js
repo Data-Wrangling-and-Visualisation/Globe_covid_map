@@ -237,7 +237,7 @@ const countryCodeMap = {
       }, 100);
     
         document.getElementById('dateSlider').addEventListener('input', onSliderChange);
-        document.getElementById('dateInput').addEventListener('change', onDateInputChange); // Listen for changes
+        document.getElementById('dateInput').addEventListener('change', onDateInputChange);
         document.getElementById('heatmapBtn').addEventListener('click', showFlatMapModal);
         document.querySelector('.flatmap-close').addEventListener('click', hideFlatMapModal);
         document.getElementById('chartBtn').addEventListener('click', showCharts);
@@ -393,11 +393,15 @@ const countryCodeMap = {
                 updateDateLabel();
                 updateDate();
                 createLegend();
+    
+                // Debug: Log available dates
+                console.log('Available dates:', covidData[0].data.map(d => d.date));
             }
         } catch (error) {
             console.error('Error loading data:', error);
         }
     }
+    
     
     
     
@@ -443,27 +447,29 @@ function updateDateLabel() {
     
   
     
-    // --- Event handler for date input changes ---
-    function onDateInputChange() {
-      const dateStr = document.getElementById('dateInput').value;
-      const newDate = parseDate(dateStr); // Use parseDate
+      function onDateInputChange() {
+        const dateStr = document.getElementById('dateInput').value;
+        const newDate = parseDate(dateStr); // Use parseDate
     
-      if (isValidDate(newDate)) {
-        // Find the index in the data array
-        const newIndex = covidData[0].data.findIndex(item => item.date === dateStr);
-        if (newIndex !== -1) {
-          currentDateIndex = newIndex;
-          document.getElementById('dateSlider').value = currentDateIndex; // Update slider
-          updateDateLabel(); // Update the label (though it should already be correct)
-          updateVisualization(); // Update points/heatmap
+        if (isValidDate(newDate)) {
+            // Convert date to YYYY-MM-DD format
+            const formattedDate = newDate.toISOString().split('T')[0];
+    
+            // Find the index in the data array
+            const newIndex = covidData[0].data.findIndex(item => item.date === formattedDate);
+            if (newIndex !== -1) {
+                currentDateIndex = newIndex;
+                document.getElementById('dateSlider').value = currentDateIndex;
+                updateDateLabel();
+                updateVisualization();
+            } else {
+                alert('Date not found in data.');
+            }
         } else {
-            alert('Date not found in data.');
+            alert('Invalid date format. Please use DD.MM.YYYY.');
         }
-    
-      } else {
-        alert('Invalid date format. Please use DD.MM.YYYY.');
-      }
     }
+  
     // --- Helper function to parse date string ---
     function parseDate(dateStr) {
       const parts = dateStr.split('.');
@@ -471,12 +477,12 @@ function updateDateLabel() {
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
         const year = parseInt(parts[2], 10);
+        console.log(`Parsed date: ${year}-${month + 1}-${day}`);
         return new Date(year, month, day);
       }
       return null; // Invalid format
     }
     
-    // --- Helper function to validate date ---
     function isValidDate(date) {
       return date instanceof Date && !isNaN(date);
     }
