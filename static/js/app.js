@@ -666,14 +666,14 @@ function updateDateLabel() {
       return new THREE.Color(`hsl(${hue}, 100%, 50%)`);
     }
     
-    // --- Point Color Scale (Green to Red) ---
     function getPointColorByCases(cases) {
-      if (cases === null || cases === undefined) {
-         return new THREE.Color(LOW_COLOR);
-      }
-      const hue = 120 - Math.min(cases * 0.1, 120);
-      return new THREE.Color(`hsl(${hue}, 100%, 50%)`);
-    }
+      return cases > 50000 ? new THREE.Color(EXTREME_COLOR) :
+             cases > 10000 ? new THREE.Color(VERY_HIGH_COLOR) :
+             cases > 1000 ? new THREE.Color(HIGH_COLOR) :
+             cases > 100 ? new THREE.Color(MEDIUM_COLOR) :
+             cases > 0 ? new THREE.Color(LOW_COLOR) :
+             new THREE.Color('#808080'); // Gray for zero cases
+  }
     
     function switchMode(newMode) {
         mode = newMode;
