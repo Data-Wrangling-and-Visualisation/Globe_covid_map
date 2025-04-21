@@ -448,20 +448,20 @@ function updateDateLabel() {
   
     
       function onDateInputChange() {
-        const dateStr = document.getElementById('dateInput').value;
-        const newDate = parseDate(dateStr); // Use parseDate
+        const dateStr = document.getElementById('modalDateInput').value;
+        const newDate = parseDate(dateStr); 
     
         if (isValidDate(newDate)) {
-            // Convert date to YYYY-MM-DD format
             const formattedDate = newDate.toISOString().split('T')[0];
     
-            // Find the index in the data array
             const newIndex = covidData[0].data.findIndex(item => item.date === formattedDate);
             if (newIndex !== -1) {
                 currentDateIndex = newIndex;
-                document.getElementById('dateSlider').value = currentDateIndex;
+                document.getElementById('modalDateSlider').value = currentDateIndex;
+                document.getElementById('dateSlider').value = currentDateIndex; // Sync main slider
                 updateDateLabel();
                 updateVisualization();
+                updateFlatMapData(); 
             } else {
                 alert('Date not found in data.');
             }
